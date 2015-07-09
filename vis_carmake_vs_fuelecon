@@ -1,0 +1,66 @@
+---
+title: "Homework 3"
+author: "Naomi Hernandez"
+output: html_document
+---
+
+#Getting Data from SQLite Database
+```{r message=FALSE, warning=FALSE, echo=F}
+
+library(RSQLite)
+library(sqldf)
+library(dplyr)
+library(ggplot2)
+
+db <- dbConnect(SQLite(), dbname="vehicles.db")
+vehicles=dbReadTable(db, "vehicles")
+
+head(vehicles, 10)
+summary(vehicles)
+```
+
+#Converting to Factors
+```{r, echo=FALSE}
+
+#Transforming character vectors in df to factor vectors
+vehicles$make=as.factor(vehicles$make)
+vehicles$VClass=as.factor(vehicles$VClass)
+vehicles$cylinders=as.factor(vehicles$cylinders)
+vehicles$trany=as.factor(vehicles$trany)
+
+summary(vehicles)
+
+```
+
+
+#Filter Down Data
+```{r, echo=FALSE}
+
+#Filter vehicles, VClass>40
+vclass.count=filter(aggregate(vehicles$VClass, by=list(vehicles$VClass), function(x) length(x)), x>40, drop=T)
+vclass.count$Group.1=factor(vclass.count$Group.1)
+veh.vcl.filt=filter(vehicles, VClass %in% vclass.count$Group.1)
+
+summary(veh.vcl.filt)
+
+```
+
+#Fuel Economy of Vehicles of Different Makes
+```{r, echo=FALSE, dpi=200}
+
+veh.count=NULL
+for(x in levels(vclass.count$Group.1)){
+veh.count=filter(veh.vcl.filt, VClass == x)
+veh.avg.year=veh.count %>% group_by(year, make) %>% summarise(mpg=mean(comb08)) %>% arrange(year, make)
+line.plot <- ggplot(data=veh.avg.year, aes(x=year, y=mpg, group=make))+geom_line(aes(colour=make))+xlab("Year")+ylab("Mean Combined MPG")+ggtitle(x)+guides(col=guide_legend(ncol=2))+theme(legend.text=element_text(size=8))
+
+print(line.plot)
+
+veh.avg.make=veh.count %>% group_by(make) %>% summarise(mpg=mean(comb08)) %>% arrange(-mpg)
+bar.plot=ggplot(data=veh.avg.make, aes(x=reorder(make, mpg, function(x) -x), y=mpg))+geom_bar(stat="identity", alpha=0.5)+theme(legend.position="none")+theme(axis.text.x=element_text(size=rel(0.75), angle=90, hjust=1))+xlab("Make")+ylab("Mean Combined MPG in All Years")+ggtitle(x)
+
+print(bar.plot)
+
+}
+
+```
