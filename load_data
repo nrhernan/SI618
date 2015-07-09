@@ -1,0 +1,120 @@
+#!/usr/bin/env python
+# coding=utf-8
+
+'''si618wh3part1_naomirh.py: .'''
+__author__="Naomi Hernandez"
+
+import sys
+import csv
+import sqlite3 as sql
+
+reload(sys)
+sys.setdefaultencoding('utf8')
+
+#---------------------------------------------------------------------------------------------------------#
+#  VARIABLES                                                                                              #
+#---------------------------------------------------------------------------------------------------------#
+
+fields={'year':('integer', 0),
+        'make':('text', 1),
+        'model':('text', 2),
+        'VClass':('text', 3),
+        'cylinders':('real',4),
+        'displ':('real',5),
+        'trany':('text', 6),
+        'city08':('real', 7),
+        'highway08':('real', 8),
+       'comb08':('real', 9)}
+db='vehicles.db'
+
+
+#---------------------------------------------------------------------------------------------------------#
+#  FUNCTIONS                                                                                              #
+#---------------------------------------------------------------------------------------------------------#
+
+def alter_col(mytabl, mycol, mydt):
+    return 'ALTER TABLE %s ALTER %s %s'%(mytabl, mycol, mydt)
+
+
+#opens vehicles database
+def exec_db(*exec_comm):
+    comms=[]
+    for i in exec_comm:
+        if type(i)==str:
+            comms.append((i,))
+        elif type(i)==tuple:
+            comms.append(i)
+    with sql.connect(db) as conn:
+        cur=conn.cursor()
+        for i in comms:
+            if len(i)==1:
+                cur.execute(i[0])
+            elif len(i)==2:
+                cur.executemany(i[0], i[1])
+        conn.commit()
+
+#Takes a line, returns list of values corresponding to fields
+def line_values(myline, myflds):
+    #for i in myline:
+        #print "field in line: %s"%i
+    row_tup=[]
+    fld_sort=sorted(myflds.keys(), key=lambda x:x[1])
+    #print "sorted fields: %s"%fld_sort
+    for x in fld_sort:
+        #print "x is: %s"%x
+        if myflds[x][0]=='text':
+            row_tup.append(('"'+myline[x]+'"', myflds[x][1]))
+        elif myflds[x][0]=='real' or myflds[x][0]=='integer':
+            row_tup.append((myline[x], myflds[x][1]))
+    row=[n[0] for n in sorted(row_tup, key=lambda x:x[1])]
+    return row
+    #print "Row: %s"%row
+    #print ""
+
+
+
+#---------------------------------------------------------------------------------------------------------#
+#  RUNNING CODE                                                                                           #
+#---------------------------------------------------------------------------------------------------------#
+
+#Populate metadata
+
+fin=r'C:\Users\Naomi\Documents\si618\hw3\vehicles.csv'
+fcsv=open(fin, 'rb')
+read=csv.DictReader(fcsv, delimiter=",")
+
+comm_drop='DROP TABLE IF EXISTS vehicles'
+
+flds_sql=[k+' '+v[0] for k, v in sorted(fields.items(), key=lambda x:x[1][1])]
+comm_create='CREATE TABLE vehicles (%s)'%', '.join(flds_sql)
+print comm_create
+exec_db(comm_drop, comm_create)
+
+comm_insert_left='INSERT INTO vehicles VALUES ('
+comm_checkinsert='SELECT COUNT(*) FROM vehicles'
+
+count=0
+giant=[]
+with sql.connect(db) as conn:
+    cur=conn.cursor()
+    for line in read:
+        if len(line['cylinders'])>0 and len(line['displ'])>0:
+            if line['cylinders'].lower()!='na' and line['cylinders'].lower()!='na':
+                if line['cylinders'].lower()!='0' and line['cylinders'].lower()!='0':
+                    comm_in='INSERT INTO vehicles VALUES ('+', '.join(line_values(line, fields))+')'
+                    cur.execute(comm_in)
+                else:
+                    continue
+            else:
+                continue
+        else:
+            continue
+    conn.commit()
+    cur.execute('SELECT COUNT(*) FROM vehicles')
+    data=cur.fetchall()
+    print data
+
+fcsv.close()
+
+
+
